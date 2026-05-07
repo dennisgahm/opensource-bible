@@ -1,0 +1,111 @@
+<html>
+  <h1>Bible</h1>
+  <h2>Open source by Dennis Gahm</h2>
+  <a href="kjv.txt">King James Bible .txt</a>
+
+  <body>
+    <script>
+      async function loadBible() {
+	  const response = await fetch("kjv.txt");
+	  const text = await response.text();
+
+	  const lines = text.split("\n");
+
+	  const OTBooks = [];
+	  const NTBooks = [];
+
+	  const OT = []; // 3D array: OT[book][chapter][verse]
+	  const NT = [];
+
+	  let mode = "SEARCH_START";
+	  let section = null; // "OT" or "NT"
+	  let currentBook = -1;
+
+	  for (let i = 0; i < lines.length; i++) {
+	      let line = lines[i].trim();
+
+	      // 1. wait for start marker
+	      if (mode === "SEARCH_START") {
+		  if (line === "***start***") {
+		      mode = "OT_HEADER";
+		  }
+		  continue;
+	      }
+
+	      // 2. detect OT header
+	      if (mode === "OT_HEADER") {
+		  if (line.includes("Old Testament")) {
+		      section = "OT";
+		      mode = "READ";
+		  }
+		  continue;
+	      }
+
+	      // 3. detect NT header
+	      if (line.includes("New Testament")) {
+		  section = "NT";
+		  currentBook = -1;
+		  continue;
+	      }
+
+	      // 4. blank line resets book
+	      if (line === "") {
+		  currentBook = -1;
+		  continue;
+	      }
+
+	      // 5. book name (no ":")
+	      if (!line.includes(":")) {
+		  if (section === "OT") {
+		      OTBooks.push(line);
+		      OT.push([]);
+		      currentBook = OT.length - 1;
+		  } else if (section === "NT") {
+		      NTBooks.push(line);
+		      NT.push([]);
+		      currentBook = NT.length - 1;
+		  }
+		  continue;
+	      }
+
+	      // 6. verse line: "1:1 text..."
+	      if (currentBook !== -1) {
+		  const [chapterVerse, ...textParts] = line.split(" ");
+		  const text = textParts.join(" ");
+
+		  const [chapterStr] = chapterVerse.split(":");
+		  const chapter = parseInt(chapterStr, 10) - 1; // zero-based
+
+		  const target = section === "OT" ? OT : NT;
+
+		  if (!target[currentBook][chapter]) {
+		      target[currentBook][chapter] = [];
+		  }
+
+		  target[currentBook][chapter].push(text);
+	      }
+	  }
+
+	  // ---------------------------
+	  // TEST OUTPUT
+	  // ---------------------------
+
+	  console.log("OT Books:", OTBooks);
+	  console.log("Genesis 1:1:", OT[0][0][0]);
+
+	  console.log("NT Books:", NTBooks);
+	  console.log("Matthew 1:1:", NT[0][0][0]);
+
+	  // expose globally
+	  window.OT = OT;
+	  window.NT = NT;
+	  window.OTBooks = OTBooks;
+	  window.NTBooks = NTBooks;
+      }
+
+      loadBible();
+    </script>
+  </body>
+</html>
+
+

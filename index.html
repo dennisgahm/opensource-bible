@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Parser</title>
+
+    <style>
+      body {
+          font-family: Arial, sans-serif;
+          background: #f2f2f2;
+          padding: 20px;
+      }
+
+      #output {
+          background: white;
+          padding: 20px;
+          border-radius: 10px;
+          white-space: pre-wrap;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <h1>Bible</h1>
+    <h2>Open source by Dennis Gahm</h2>
+
+    <div id="output">Loading...</div>
+
+    <script>
+
+      async function loadBible() {
+
+	  const res = await fetch("kjv.txt");
+	  const raw = await res.text();
+
+	  // START MARKER
+	  const startIndex =
+		raw.indexOf("***start***");
+
+	  if (startIndex === -1) {
+              console.error("Missing ***start***");
+              return;
+	  }
+
+	  const text =
+		raw.substring(startIndex + "***start***".length);
+
+	  const lines =
+		text.split("\n");
+
+	  const books = [];
+
+	  let section = null;
+	  let currentBook = null;
+
+	  // -----------------------------------
+	  // PASS 1:
+	  // DETECT BOOKS
+	  // -----------------------------------
+
+	  for (let line of lines) {
+
+              const trimmed =
+		    line.trim();
+
+              if (!trimmed) continue;
+
+              // Detect OT
+              if (trimmed.includes("Old Testament")) {
+		  section = "OT";
+		  continue;
+              }
+
+              // Detect NT
+              if (trimmed.includes("New Testament")) {
+		  section = "NT";
+		  continue;
+              }
+
+              // BOOK NAME:
+              // line WITHOUT verse marker
+              if (!trimmed.match(/\d+:\d+/)) {
+
+		  currentBook = {
+                      name: trimmed,
+                      section: section,
+                      text: ""
+		  };
+
+		  books.push(currentBook);
+
+		  continue;
+              }
+
+              // Add RAW LINE to book text
+              if (currentBook) {
+
+		  // preserve newlines
+		  currentBook.text += line + "\n";
+              }
+	  }
+
+	  // -----------------------------------
+	  // PASS 2:
+	  // PARSE VERSES GLOBALLY
+	  // -----------------------------------
+
+	  const OTBooks = [];
+	  const NTBooks = [];
+
+	  const OT = [];
+	  const NT = [];
+
+	  for (const book of books) {
+
+              const parsedBook = [];
+
+              const verseRegex =
+		    /(\d+):(\d+)/g;
+
+              const matches =
+		    [...book.text.matchAll(verseRegex)];
+
+              for (let i = 0; i < matches.length; i++) {
+
+		  const current =
+			matches[i];
+
+		  const next =
+			matches[i + 1];
+
+		  const start =
+			current.index;
+
+		  const end =
+			next
+			? next.index
+			: book.text.length;
+
+		  const chunk =
+			book.text
+			.substring(start, end)
+			.trim();
+
+		  const firstSpace =
+			chunk.indexOf(" ");
+
+		  if (firstSpace === -1) continue;
+
+		  const cv =
+			chunk.substring(0, firstSpace);
+
+		  let verseText =
+                      chunk.substring(firstSpace + 1);
+
+		  // FIX MULTILINE VERSES
+		  verseText =
+                      verseText
+                      .replace(/\r/g, "")
+                      .replace(/\n+/g, " ")
+                      .replace(/\s+/g, " ")
+                      .trim();
+
+		  const [chapterStr, verseStr] =
+			cv.split(":");
+
+		  const chapter =
+			parseInt(chapterStr, 10) - 1;
+
+		  const verse =
+			parseInt(verseStr, 10) - 1;
+
+		  if (!parsedBook[chapter]) {
+                      parsedBook[chapter] = [];
+		  }
+
+		  parsedBook[chapter][verse] =
+                      verseText;
+              }
+
+              // STORE
+              if (book.section === "OT") {
+
+		  OTBooks.push(book.name);
+		  OT.push(parsedBook);
+
+              } else if (book.section === "NT") {
+
+		  NTBooks.push(book.name);
+		  NT.push(parsedBook);
+              }
+	  }
+
+	  // GLOBALS
+	  window.OT = OT;
+	  window.NT = NT;
+
+	  window.OTBooks = OTBooks;
+	  window.NTBooks = NTBooks;
+
+	  // TESTS
+	  const genesis11 =
+		OT?.[0]?.[0]?.[0];
+
+	  const genesis12 =
+		OT?.[0]?.[0]?.[1];
+
+	  const genesis13 =
+		OT?.[0]?.[0]?.[2];
+
+	  console.log("Genesis 1:1 =", genesis11);
+	  console.log("Genesis 1:2 =", genesis12);
+	  console.log("Genesis 1:3 =", genesis13);
+
+	  document.getElementById("output").textContent =
+
+	  `Genesis 1:1
+
+${genesis11}
+
+
+Genesis 1:2
+
+${genesis12}
+
+
+Genesis 1:3
+
+${genesis13}
+
+
+Check Console:
+OT
+NT
+OTBooks
+NTBooks`;
+
+      }
+
+      loadBible();
+
+    </script>
+
+  </body>
+
+</html>
