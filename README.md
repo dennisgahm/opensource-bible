@@ -1,2 +1,3 @@
-Let's get RUssian roullete going with this Bible.
-We say, I want a verse, and we randomly pick a verse that edifies us.
+First feature I need help on:
+--Let's make a way to randomly select verses from each book of the Bible.
+--Three verses at a time is fine.
